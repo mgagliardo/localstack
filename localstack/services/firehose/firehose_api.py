@@ -200,9 +200,8 @@ def create_stream(stream_name, delivery_stream_type='DirectPut', delivery_stream
         payload={'n': event_publisher.get_hash(stream_name)})
 
     if delivery_stream_type == 'KinesisStreamAsSource':
-        kinesis_stream_name = delivery_stream_type_configuration.get('KinesisStreamARN').split('/')[1]
         kinesis_connector.listen_to_kinesis(
-            stream_name=kinesis_stream_name, fh_d_stream=stream_name,
+            stream_name=stream_name, fh_d_stream=stream_name,
             listener_func=process_records, wait_until_started=True,
             ddb_lease_table_suffix='-firehose', region_name=region_name)
     return stream
@@ -221,6 +220,7 @@ def delete_stream(stream_name):
 
 
 def get_stream(stream_name):
+    print("DELIVERY_STREAMS: {}".format(DELIVERY_STREAMS))
     if stream_name not in DELIVERY_STREAMS:
         return None
     return DELIVERY_STREAMS[stream_name]
