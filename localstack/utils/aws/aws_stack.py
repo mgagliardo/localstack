@@ -33,8 +33,10 @@ from localstack.utils.common import (
     is_string,
     is_string_or_bytes,
     make_http_request,
+    parse_timestamp,
     retry,
     run_safe,
+    timestamp_millis,
 )
 from localstack.utils.common import safe_requests as requests
 from localstack.utils.common import to_bytes, to_str
@@ -688,7 +690,6 @@ def _resource_arn(name, pattern, account_id=None, region_name=None):
 
 def send_event_to_target(target_arn, event, target_attributes=None, asynchronous=True):
     region = target_arn.split(":")[3]
-
     if ":lambda:" in target_arn:
         from localstack.services.awslambda import lambda_api
 
@@ -787,6 +788,25 @@ def send_event_to_target(target_arn, event, target_attributes=None, asynchronous
             PartitionKey=partition_key,
         )
 
+    elif ":logs:" in target_arn:
+        #{'version': '0', 'id': '3969ac6a-479c-4034-a556-8c6a53ddaab6', 'detail-type': 'myDetailType', 'source': 'com.mycompany.myapp', 'account': '000000000000', 'time': '2021-09-17T10:40:41Z', 'region': 'us-east-1', 'resources': ['resource1', 'resource2'], 'detail': {'key1': 'value1', 'key2': 'value2'}}
+        #rs = client.put_metric_data(Namespace=namespace, MetricData=data)
+        # namespace = "namespace-%s" % short_uid()
+
+
+        logs_client = connect_to_service("logs", region_name=region)
+        log_group_name = target_arn.split(":")[-1]
+        log_stream_name = event['id']
+        logs_client.put_log_events(
+            logGroupName=log_group_name,
+            logStreamName=log_stream_name,
+            logEvents=[
+                {
+                    "timestamp": timestamp_millis(parse_timestamp(event['time'])),
+                    "message":  json.loads(json.dumps(event)),
+                }
+            ]
+        )
     else:
         LOG.warning('Unsupported Events rule target ARN: "%s"' % target_arn)
 
